@@ -1,0 +1,71 @@
+Métodos de manobras que evitam a colisão.
+
+SLIDE 1
+- Além disso, com o aumento do número de veículos aéreos, a adoção de algoritmos de prevenção 
+    de colisões altamente eficientes e confiáveis ​​é obrigatória.         
+
+SLIDE 2
+- Apresentar os 3 tópicos a serem discutidos (tecnologias de sensorização, métodos de deteção de colisão,
+    algorítmos de collision avoidance
+
+SLIDE 3
+- Tecnologias de sensorização são divididas em 2 grupos (a bordo do uav e ground based)
+    Nesse sentido, os sensores onboard são os únicos que possibilitam uma capacidade 
+    de sense and avoid em tempo real para que os UAVs possam voar com total autonomia.
+- As tecnologias a bordo podem ser para tráfego cooperativo (radar, câmara opticas e infravermelhas, LIDAR) 
+    e não-cooperativo (Automatic Dependent Survillance – Broadcast)
+- ADS-B (Automatic Dependent Surveillance-Broadcast) meio que um drone transmite e recebe dados relativos 
+    a sua posição, velocidade, etc em modo broadcast, para todos os outros drones a sua volta, através de 
+    uma ligação de dados.
+- Funciona enviando reports regulares da sua posição atual automaticamente
+- Dependente do sistema GPS
+- Tem uma frequencia Própria de envio 1090MHz
+- Sistema Pesado (existem soluções pequenas)
+- Falar sobre P2P nos drones. (radio chip wifi) - criado task para receber e enviar msgs
+
+SLIDE 4
+- Estimar posição do tráfego, aplicar métricas e determinar se existe colição (4 abordagens)
+. Deterministica - a mais simples, extrapola uma trajetória única para o tráfego, sem considerar 
+    incerteza ou ruído. Boa para breves períodos de tempo. free model leva a algumas previsões erroneas
+- Worst case - No outro lado do expectro. Considera que intruso pode fazer qualquer manobra. Inibe o problema
+    de um modelo mais completo, mas é custoso em processamento. muitos casos periodo curto. É também o que mais
+    acusa falsos alarmas pro sistema
+- Probabilistico. Estima probabilidade de uma colisão baseada no modelo da dinamica futura do intruso.
+    probabilidades estimadas atravez de soulição algebrica, aproximação numerica, métodos de monte carlo.
+    Probabilidades comparas com trash hold. É o meio termo
+- Flight share Planing: Intruso informa posição e tajetória, dando ao uav uma figura dos movimentos 
+do intruso, dando projeção mais precis do cenário. Assume a utilização de ADS-B
+
+SLIDE 5
+- Vemos se os drones estão se aproximando ou distanciando
+- Verificamos se o tráfego se encontra dentro da chamada zona segura - safe zone
+- Se sim, temos algo como na imagem, onde estão é calculado o PCA, onde a distancia entre os drones é mínima
+- Caso essa distancia seja menor do que um determinado treshold, o sistema acusa um cenário de colisão.
+
+
+SLIDE 6
+- Após detectado que haverá uma colisão, resta os drones fazerem manobras de evasão.
+- Abordagem mista, geometric based e APF. Gemoetric based é extensão da deteção de colisão
+- Especificamos setpoints intermediários para que a colisão seja evitada 
+
+SLIDE 6 RULES OF THE AIR
+
+SLIDES 7 
+- A  idéia  básica  é  tratar  o  robô  como  uma  partícula  no espaço  de  configurações  
+    sob  a  influência de  um campo potencial artificial
+- Este campo potencial atua como uma força virtual no UAV, geralmente tão atrativa quanto 
+    ao gol e repulsiva o tráfego próximo. Este método costuma ser muito eficiente visto que, a cada momento, 
+    o movimento do robô é determinado pelo campo potencial em sua localização.
+
+SLIDE 8 GAZEBO
+- Junção de dois projetos. Crazyflie ROS - Simula o próprio firmware dos drones dentro do meu computador.
+- Facilidade com relação a desenvolver código para o simulador e depois passar o mesmo na sua totalidade
+    para os drones reais. 
+- Tem uma interface com o Gazebo, que simula toda a física do cenário para movimentos o mais ralista 
+    possíveis
+- Logicamente o simulador tem que simular os sensores inerciais (nomeadamente os acelerômetros e giroscópios)
+    utiliza o método da variancia de Allan (recolhem dados dos sensores reais, atravez de uma analise eles
+    carazterizam os erros estocásticos desses sensores no domínio do tempo) - São incoroprados no ficheiro que
+    simula esses dados.
+
+- MUDAR     

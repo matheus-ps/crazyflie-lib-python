@@ -39,6 +39,9 @@ from cflib.crazyflie.log import LogConfig
 from cflib.crazyflie.swarm import CachedCfFactory
 from cflib.crazyflie.swarm import Swarm
 from cflib.crazyflie.syncLogger import SyncLogger
+from cflib.crazyflie.points import Point
+
+currPos = {}
 
 
 def wait_for_position_estimator(scf):
@@ -73,7 +76,7 @@ def wait_for_position_estimator(scf):
             min_z = min(var_z_history)
             max_z = max(var_z_history)
 
-            # print("{} {} {}".
+            #print(scf.cf.link_uri[-1] + " {} {} {}".
             #       format(max_x - min_x, max_y - min_y, max_z - min_z))
 
             if (max_x - min_x) < threshold and (
@@ -87,11 +90,14 @@ def reset_estimator(scf):
     cf.param.set_value('kalman.resetEstimation', '1')
     time.sleep(0.1)
     cf.param.set_value('kalman.resetEstimation', '0')
+    #scf.cf.param.set_value('p2p.p2pEnable', '1')
     wait_for_position_estimator(scf)
 
 
 def activate_high_level_commander(scf):
     scf.cf.param.set_value('commander.enHighLevel', '1')
+    scf.cf.param.set_value('avoidance.enTcas2', '1')
+    scf.cf.param.set_value('commander.eneableAP', '1')
 
 
 def activate_mellinger_controller(scf, use_mellinger):
@@ -100,39 +106,132 @@ def activate_mellinger_controller(scf, use_mellinger):
         controller = 2
     scf.cf.param.set_value('stabilizer.controller', controller)
 
+def positionCallback(timestamp, data, logconf, uri):
+    x = data['stateEstimate.x']
+    y = data['stateEstimate.y']
+    z = data['stateEstimate.z']
+    #vx = data['stateEstimate.vx']
+    #vy = data['stateEstimate.vy']
+    #vz = data['stateEstimate.vz']
+    #print("positionCallback")
+    print(uri[-1] + " %.2f %.2f %.2f" %  (x, y, z))
+    currPos[uri] = Point(x, y, z)
+
+def startPositionPrinting(scf):
+    #if scf.cf.link_uri == 'radio://0/80/2M/E7E7E7E7E9':
+    #    return
+    logConf = LogConfig(name='Position', period_in_ms=200)
+    logConf.add_variable('stateEstimate.x', 'float')
+    logConf.add_variable('stateEstimate.y', 'float')
+    logConf.add_variable('stateEstimate.z', 'float')
+    logConf.add_variable('stateEstimate.vx', 'float')
+    logConf.add_variable('stateEstimate.vy', 'float')
+    logConf.add_variable('stateEstimate.vz', 'float')
+
+    scf.cf.log.add_config(logConf)
+    logConf.data_received_cb.add_callback(lambda timestamp, data, logconf: positionCallback(timestamp, data, logconf, scf.cf.link_uri))
+    logConf.start()
+
+def lastCallback(timestamp, data, logconf, uri):
+    x = data['last.x']
+    y = data['last.y']
+    z = data['last.z']
+    vx = data['last.vx']
+    vy = data['last.vy']
+    vz = data['last.vz']
+    coll = data['last.cf']
+    # Print
+    print("%.0f || %.2f %.2f %.2f || %.2f %.2f %.2f" %  (coll, x, y, z, vx, vy, vz))
+
+def startLastPrinting(scf):
+    #if scf.cf.link_uri == 'radio://0/80/2M/E7E7E7E7E9':
+    #    return
+    logConf = LogConfig(name='Last', period_in_ms=200)
+    logConf.add_variable('last.x', 'float')
+    logConf.add_variable('last.y', 'float')
+    logConf.add_variable('last.z', 'float')
+    logConf.add_variable('last.vx', 'float')
+    logConf.add_variable('last.vy', 'float')
+    logConf.add_variable('last.vz', 'float')
+    logConf.add_variable('last.cf', 'uint8_t')
+
+    scf.cf.log.add_config(logConf)
+    logConf.data_received_cb.add_callback(lambda timestamp, data, logconf: lastCallback(timestamp, data, logconf, scf.cf.link_uri))
+    logConf.start()
+
+def P2PCallback(timestamp, data, logconf, uri):
+    px = data['p2pmsg.px']
+    py = data['p2pmsg.py']
+    pz = data['p2pmsg.pz']
+    sid = data['p2pmsg.sid']
+    #print('P2PCallback')
+    print(uri[-1] + " %.2f %.2f %.2f %.0f" % (px, py, pz, sid))
+
+def startP2PPrinting(scf):
+    #if scf.cf.link_uri == 'radio://0/80/2M/E7E7E7E7E9':
+    #    return
+    logConf = LogConfig(name='P2P', period_in_ms=200)
+    #logConf.add_variable('p2pmsg.vx', 'float')
+    #logConf.add_variable('p2pmsg.vy', 'float')
+    #logConf.add_variable('p2pmsg.vz', 'float')
+    logConf.add_variable('p2pmsg.px', 'float')
+    logConf.add_variable('p2pmsg.py', 'float')
+    logConf.add_variable('p2pmsg.pz', 'float')
+    #logConf.add_variable('p2pmsg.rot', 'float')
+    #logConf.add_variable('p2pmsg.srssi', 'uint8_t')
+    logConf.add_variable('p2pmsg.sid', 'uint8_t')
+
+    scf.cf.log.add_config(logConf)
+    logConf.data_received_cb.add_callback(lambda timestamp, data, logconf: P2PCallback(timestamp, data, logconf, scf.cf.link_uri))
+    logConf.start()
+
+def debugCallback(timestamp, data, logconf, uri):
+    px = data['debu.stop']
+    #print('P2PCallback')
+    print(" %.0f" % (px))
+
+def startDebugPrinting(scf):
+    #if scf.cf.link_uri == 'radio://0/80/2M/E7E7E7E7E9':
+    #    return
+    logConf = LogConfig(name='Debug', period_in_ms=100)
+    logConf.add_variable('debu.stop', 'uint8_t')
+
+    scf.cf.log.add_config(logConf)
+    logConf.data_received_cb.add_callback(lambda timestamp, data, logconf: debugCallback(timestamp, data, logconf, scf.cf.link_uri))
+    logConf.start()
 
 def run_shared_sequence(scf):
     activate_mellinger_controller(scf, False)
 
-    box_size = 1
+    box_size = 0.7
     flight_time = 2
 
     commander = scf.cf.high_level_commander
-
-    commander.takeoff(1.0, 2.0)
-    time.sleep(3)
-
-    commander.go_to(box_size, 0, 0, 0, flight_time, relative=True)
     time.sleep(flight_time)
 
-    commander.go_to(0, box_size, 0, 0, flight_time, relative=True)
-    time.sleep(flight_time)
+    #if scf.cf.link_uri == 'radio://0/80/2M/E7E7E7E7EB' or scf.cf.link_uri == 'radio://0/80/2M/E7E7E7E7EA' or scf.cf.link_uri == 'radio://0/80/2M/E7E7E7E7E9' or scf.cf.link_uri == 'usb://0':
+    #    for i in range(200):
+    #        time.sleep(1)
+    
+    print("Takeoff")
+    commander.takeoff(1.0, flight_time)
+    time.sleep(0.5)
 
-    commander.go_to(-box_size, 0, 0, 0, flight_time, relative=True)
-    time.sleep(flight_time)
+    #print("Go")
+    #commander.go_to(0.60, 0.65, 1.0, 0, flight_time*2, relative=False)
+    #time.sleep(20)
 
-    commander.go_to(0, -box_size, 0, 0, flight_time, relative=True)
-    time.sleep(flight_time)
-
-    commander.land(0.0, 2.0)
-    time.sleep(2)
+    print("Land")
+    commander.land(0.0, flight_time)
+    time.sleep(0.5)
 
     commander.stop()
 
 
 uris = {
-    'radio://0/30/2M/E7E7E7E711',
-    'radio://0/30/2M/E7E7E7E712',
+    #'radio://0/80/2M/E7E7E7E7EA',
+    'radio://0/80/2M/E7E7E7E7E9',
+    #'usb://0',
     # Add more URIs if you want more copters in the swarm
 }
 
@@ -142,4 +241,8 @@ if __name__ == '__main__':
     with Swarm(uris, factory=factory) as swarm:
         swarm.parallel_safe(activate_high_level_commander)
         swarm.parallel_safe(reset_estimator)
+        #swarm.parallel_safe(startPositionPrinting)
+        #swarm.parallel_safe(startP2PPrinting)
+        #swarm.parallel_safe(startLastPrinting)
+        #swarm.parallel_safe(startDebugPrinting)
         swarm.parallel_safe(run_shared_sequence)
